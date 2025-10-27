@@ -1,44 +1,27 @@
 <?php
-// REVISI: Mengatur zona waktu default ke WIB (GMT+7)
 date_default_timezone_set('Asia/Jakarta');
 
-// --- PENGATURAN & KONFIGURASI ---
-
-// File untuk menyimpan cache ukuran folder agar loading lebih cepat
 define('CACHE_FILE', '_dashboard_cache.json');
 
-// REVISI: Logika refresh cache dihapus
-// ... (blok refresh dihapus) ...
-
-// Abaikan folder/file ini dari daftar
 $ignore_list = [
     '.',
     '..',
-    'dashboard', // Folder XAMPP bawaan
-    'img', // Folder XAMPP bawaan
-    'webalizer', // Folder XAMPP bawaan
-    'xampp', // Folder XAMPP bawaan
-    basename(__FILE__), // Sembunyikan file ini
-    basename(CACHE_FILE), // Sembunyikan file cache
+    'dashboard',
+    'img',
+    'webalizer',
+    'xampp',
+    basename(__FILE__),
+    basename(CACHE_FILE),
     'desktop.ini',
-    'node_modules', // Opsional: Sembunyikan node_modules dari daftar utama
+    'node_modules',
     '.git',
     '.vscode',
 ];
 
-// --- FUNGSI HELPER ---
-
-/**
- * Menghitung total ukuran folder secara rekursif.
- * Dibuat lebih aman dengan try-catch.
- * @param string $dir Path ke direktori
- * @return int Ukuran dalam bytes
- */
 function getDirSize($dir)
 {
     $size = 0;
     try {
-        // Gunakan FilesystemIterator::SKIP_DOTS untuk melewati '.' dan '..' secara otomatis
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS | FilesystemIterator::UNIX_PATHS));
         foreach ($iterator as $file) {
             if ($file->isReadable()) {
@@ -46,17 +29,11 @@ function getDirSize($dir)
             }
         }
     } catch (Exception $e) {
-        // Abaikan file/folder yang tidak bisa dibaca (permission issue)
-        $size = 0; // Set ke 0 jika ada error
+        $size = 0;
     }
     return $size;
 }
 
-/**
- * Memformat ukuran file dari bytes menjadi unit yang mudah dibaca.
- * @param int $bytes Ukuran dalam bytes
- * @return string Ukuran yang diformat (KB, MB, GB)
- */
 function formatSize($bytes)
 {
     if ($bytes >= 1073741824) {
@@ -74,40 +51,29 @@ function formatSize($bytes)
     }
 }
 
-// --- LOGIKA UTAMA (Caching & Pengumpulan Data) ---
-
-// 1. Muat Cache yang Ada (jika ada)
 $cache = @file_exists(CACHE_FILE) ? json_decode(file_get_contents(CACHE_FILE), true) : [];
 $projects = [];
 $needs_cache_update = false;
 $current_dir = '.';
 
-// 2. Pindai Direktori
 $files = scandir($current_dir);
 
 foreach ($files as $file) {
-    // Lewati jika ada di daftar ignore atau bukan direktori
     if (in_array($file, $ignore_list) || !is_dir($file)) {
         continue;
     }
 
     $path = $current_dir . '/' . $file;
-    $mtime = filemtime($path); // Waktu modifikasi terakhir
+    $mtime = filemtime($path);
 
-    // 3. Logika Caching Cerdas
-    // Cek cache: Apakah folder ini tidak ada di cache ATAU waktu modifikasinya berubah?
     if (!isset($cache[$file]) || $cache[$file]['mtime'] != $mtime) {
-        // Ya, hitung ulang ukurannya (proses lambat)
         $size = getDirSize($path);
-        // Perbarui cache
         $cache[$file] = ['mtime' => $mtime, 'size' => $size];
         $needs_cache_update = true;
     } else {
-        // Tidak, gunakan ukuran dari cache (proses cepat)
         $size = $cache[$file]['size'];
     }
 
-    // 4. Tambahkan ke daftar proyek
     $projects[] = [
         'name' => $file,
         'mtime' => $mtime,
@@ -117,18 +83,14 @@ foreach ($files as $file) {
     ];
 }
 
-// 5. Urutkan default berdasarkan 'Terbaru' (waktu modifikasi)
-// Kita lakukan di PHP agar tampilan awal sudah terurut
 usort($projects, function ($a, $b) {
-    return $b['mtime'] - $a['mtime']; // Descending (terbaru dulu)
+    return $b['mtime'] - $a['mtime'];
 });
 
-// 6. Simpan cache baru jika ada perubahan
 if ($needs_cache_update) {
     @file_put_contents(CACHE_FILE, json_encode($cache, JSON_PRETTY_PRINT));
 }
 
-// 7. Tampilkan path saat ini
 $current_path = realpath($current_dir);
 
 ?>
@@ -138,14 +100,11 @@ $current_path = realpath($current_dir);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Local Projects</title>
-    <!-- Memuat font Inter dari Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- REVISI: Menggunakan Font Awesome 5 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" xintegrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        /* --- Reset & Root Variables --- */
         :root {
             --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             --color-bg: #0D1117;
@@ -162,7 +121,6 @@ $current_path = realpath($current_dir);
             --transition-fast: all 0.2s ease-in-out;
         }
 
-        /* --- Efek Latar Belakang Aurora --- */
         body::before {
             content: "";
             position: fixed;
@@ -195,7 +153,6 @@ $current_path = realpath($current_dir);
             100% { transform: scale(1.1) rotate(5deg); opacity: 0.2; }
         }
 
-        /* --- Gaya Dasar --- */
         body {
             font-family: var(--font-sans);
             background-color: var(--color-bg);
@@ -211,14 +168,12 @@ $current_path = realpath($current_dir);
         }
         a:hover { color: #79C0FF; }
 
-        /* REVISI: Atur ukuran Font Awesome default */
         i.fas {
             font-size: 0.9em;
-            width: 16px; /* Beri lebar agar sejajar */
+            width: 16px;
             text-align: center;
         }
 
-        /* --- Kontainer Utama (Efek Glassmorphism) --- */
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -231,7 +186,6 @@ $current_path = realpath($current_dir);
             overflow: hidden;
         }
 
-        /* --- Header --- */
         .header {
             padding: 24px 32px;
             border-bottom: 1px solid var(--color-border);
@@ -274,7 +228,6 @@ $current_path = realpath($current_dir);
             border-color: rgba(255, 255, 255, 0.2);
         }
 
-        /* --- Kontrol (Filter, Sort, View) --- */
         .controls {
             padding: 24px 32px;
             display: flex;
@@ -282,15 +235,14 @@ $current_path = realpath($current_dir);
             gap: 16px;
             border-bottom: 1px solid var(--color-border);
             background-color: rgba(0, 0, 0, 0.1);
-            justify-content: space-between; /* REVISI: Dorong item ke kiri & kanan */
-            align-items: center; /* REVISI: Sejajarkan secara vertikal */
+            justify-content: space-between;
+            align-items: center;
         }
 
-        /* REVISI: Perbaikan layout search bar & control group */
         .search-bar {
-            flex: 1 1 300px; /* flex-grow, flex-shrink, flex-basis */
+            flex: 1 1 300px;
             position: relative;
-            max-width: 450px; /* REVISI: Perkecil lagi lebar maksimum search bar */
+            max-width: 450px;
         }
         .search-bar i.fas {
             position: absolute;
@@ -316,12 +268,11 @@ $current_path = realpath($current_dir);
         }
 
         .control-group {
-            flex-shrink: 0; /* Mencegah grup kontrol mengecil */
+            flex-shrink: 0;
             display: flex;
             gap: 8px;
         }
 
-        /* REVISI: Tambahan style untuk tombol Refresh */
         .control-button, .sort-select, .view-toggle button {
             padding: 10px 16px;
             background-color: var(--color-input-bg);
@@ -363,18 +314,15 @@ $current_path = realpath($current_dir);
             opacity: 1;
         }
 
-        /* --- Konten Proyek (Grid & List) --- */
         .project-content {
             padding: 32px;
         }
 
-        /* REVISI: Kontainer #projectGrid akan diubah oleh JS */
         #projectGrid {
             display: grid;
             gap: 20px;
         }
         
-        /* REVISI: Struktur HTML item disatukan. CSS akan menatanya. */
         .project-item {
             color: var(--color-text-primary);
             transition: var(--transition-fast);
@@ -389,7 +337,7 @@ $current_path = realpath($current_dir);
             gap: 12px;
         }
         .item-icon i.fas {
-            font-size: 20px; /* Ukuran ikon folder besar */
+            font-size: 20px;
             color: var(--color-accent-blue);
             width: 24px;
         }
@@ -404,7 +352,6 @@ $current_path = realpath($current_dir);
             color: var(--color-text-secondary);
         }
         
-        /* === Tampilan GRID === */
         .grid-view #projectGrid {
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         }
@@ -430,20 +377,19 @@ $current_path = realpath($current_dir);
             text-decoration: underline;
         }
         .grid-view .item-meta-modified {
-            margin-top: auto; /* Mendorong meta ke bawah */
+            margin-top: auto;
             font-size: 13px;
         }
         .grid-view .item-meta-size {
             font-size: 13px;
         }
         .grid-view .project-list-header {
-            display: none; /* Sembunyikan header list */
+            display: none;
         }
 
-        /* === Tampilan LIST === */
         .list-view #projectGrid {
             display: grid;
-            gap: 4px; /* Gap lebih kecil untuk list */
+            gap: 4px;
         }
         .list-view .project-list-header {
             display: grid;
@@ -459,7 +405,7 @@ $current_path = realpath($current_dir);
         }
         .list-view .project-item {
             display: grid;
-            grid-template-columns: 3fr 1fr 1fr; /* Name | Modified | Size */
+            grid-template-columns: 3fr 1fr 1fr;
             gap: 16px;
             padding: 16px 20px;
             border-radius: 8px;
@@ -471,10 +417,10 @@ $current_path = realpath($current_dir);
             border-color: var(--color-border);
         }
         .list-view .item-icon {
-            font-size: 1em; /* Ukuran normal */
+            font-size: 1em;
         }
         .list-view .item-icon i.fas {
-            font-size: 1em; /* Ukuran normal */
+            font-size: 1em;
             width: 16px;
         }
         .list-view .item-name {
@@ -487,18 +433,16 @@ $current_path = realpath($current_dir);
         .list-view .item-meta-size {
             font-size: 14px;
         }
-        /* Sembunyikan ikon di dalam meta list, karena sudah ada header */
         .list-view .item-meta-modified i.fas,
         .list-view .item-meta-size i.fas {
             display: none;
         }
         
-        /* State Kosong (jika tidak ada proyek) */
         .empty-state {
             text-align: center;
             padding: 60px 40px;
             color: var(--color-text-secondary);
-            grid-column: 1 / -1; /* Agar terentang penuh */
+            grid-column: 1 / -1;
         }
         .empty-state i.fas {
             font-size: 48px;
@@ -511,7 +455,6 @@ $current_path = realpath($current_dir);
             font-size: 20px;
         }
 
-        /* --- Footer --- */
         .footer {
             text-align: center;
             padding: 24px;
@@ -519,45 +462,40 @@ $current_path = realpath($current_dir);
             color: var(--color-text-secondary);
         }
 
-        /* -- Gaya Neon untuk Link di Footer -- */
         .neon-link {
-            color: #00d9ff; /* Warna teks neon (biru cyan) */
-            text-decoration: none; /* Hilangkan garis bawah */
+            color: #00d9ff;
+            text-decoration: none;
             text-shadow: 
                 0 0 5px #00d9ff,
                 0 0 10px #00d9ff,
                 0 0 15px #00d9ff;
-            transition: all 0.3s ease-in-out; /* Animasi halus */
+            transition: all 0.3s ease-in-out;
         }
 
         .neon-link:hover {
-            color: #fff; /* Ubah jadi putih pas di-hover */
+            color: #fff;
             text-shadow: 
                 0 0 10px #00d9ff,
                 0 0 20px #00d9ff,
-                0 0 30px #00d9ff; /* Bikin glow-nya lebih kuat */
+                0 0 30px #00d9ff;
         }
 
-        /* --- Media Queries untuk Responsif --- */
         @media (max-width: 768px) {
             body { padding: 20px 10px; }
             .header { padding: 20px; flex-direction: column; align-items: stretch; }
             .controls { padding: 20px; }
             .project-content { padding: 20px; }
             
-            /* Tampilan Grid di mobile = 1 kolom */
             .grid-view #projectGrid { grid-template-columns: 1fr; }
             
-            /* Tampilan List di mobile = menumpuk */
-            .list-view .project-list-header { display: none; } /* Sembunyikan header tabel */
+            .list-view .project-list-header { display: none; }
             
             .list-view .project-item {
-                grid-template-columns: 1fr; /* Tumpuk semua */
+                grid-template-columns: 1fr;
                 gap: 12px;
                 padding: 16px;
                 border: 1px solid var(--color-border);
             }
-            /* Tampilkan kembali ikon meta di mobile */
             .list-view .item-meta-modified i.fas,
             .list-view .item-meta-size i.fas {
                 display: inline-block;
@@ -567,17 +505,14 @@ $current_path = realpath($current_dir);
 </head>
 <body>
 
-    <!-- Kontainer Utama -->
     <div class="container">
         
-        <!-- Header -->
         <header class="header">
             <div class="header-title">
                 <h1>My Local Projects</h1>
                 <p><?php echo htmlspecialchars($current_path); ?></p>
             </div>
             <div class="quick-links">
-                <!-- REVISI: Menggunakan Font Awesome -->
                 <a href="/phpmyadmin/" target="_blank">
                     <i class="fas fa-database"></i>
                     <span>phpMyAdmin</span>
@@ -589,15 +524,12 @@ $current_path = realpath($current_dir);
             </div>
         </header>
 
-        <!-- Kontrol -->
         <div class="controls">
             <div class="search-bar">
-                <!-- REVISI: Menggunakan Font Awesome -->
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="Cari proyek...">
             </div>
             <div class="control-group">
-                <!-- REVISI: Tombol Refresh dihapus -->
                 <select id="sortSelect" class="sort-select" aria-label="Urutkan proyek">
                     <option value="mtime-desc">Terbaru</option>
                     <option value="mtime-asc">Terlama</option>
@@ -607,7 +539,6 @@ $current_path = realpath($current_dir);
                     <option value="size-asc">Ukuran (Kecil-Besar)</option>
                 </select>
                 <div class="view-toggle">
-                    <!-- REVISI: Menggunakan Font Awesome -->
                     <button type="button" id="gridViewBtn" class="active" aria-label="Tampilan Grid">
                         <i class="fas fa-th-large"></i>
                     </button>
@@ -618,20 +549,16 @@ $current_path = realpath($current_dir);
             </div>
         </div>
 
-        <!-- Konten Proyek -->
         <main class="project-content grid-view" id="projectContainer">
             
-            <!-- Header Tampilan List (default tersembunyi) -->
             <div class="project-list-header">
                 <div>Nama Proyek</div>
                 <div>Terakhir Diubah</div>
                 <div>Ukuran</div>
             </div>
 
-            <!-- Daftar Proyek (akan diisi oleh PHP) -->
             <div id="projectGrid">
                 <?php if (empty($projects)): ?>
-                    <!-- Tampilan Jika Kosong -->
                     <div class="empty-state">
                         <i class="fas fa-folder-open"></i>
                         <h3>Tidak Ada Proyek</h3>
@@ -639,19 +566,16 @@ $current_path = realpath($current_dir);
                     </div>
                 <?php endif; ?>
 
-                <?php 
-                // REVISI: Struktur Loop Diperbaiki Total
-                // Sekarang hanya ada satu item per proyek, CSS akan menatanya
+                <?php
                 ?>
                 <?php foreach ($projects as $project): ?>
-                    <a href="<?php echo rawurlencode($project['name']); ?>/" <?php // REVISI: Link folder di-encode dengan rawurlencode untuk menangani '#' ?>
+                    <a href="<?php echo rawurlencode($project['name']); ?>/" 
                        target="_blank"
                        class="project-item" 
                        data-name="<?php echo strtolower(htmlspecialchars($project['name'])); ?>"
                        data-mtime="<?php echo $project['mtime']; ?>"
                        data-size="<?php echo $project['size']; ?>">
                         
-                        <!-- Konten item universal -->
                         <div class="item-icon">
                             <i class="fas fa-folder"></i>
                             <span class="item-name"><?php echo htmlspecialchars($project['name']); ?></span>
@@ -664,7 +588,7 @@ $current_path = realpath($current_dir);
                         
                         <div class="item-meta-size">
                             <i class="fas fa-hdd"></i>
-                            <span><?php echo $project['size_formatted']; // REVISI: Typo <?Vphp diperbaiki ?></span>
+                            <span><?php echo $project['size_formatted']; ?></span>
                         </div>
                     </a>
                 <?php endforeach; ?>
@@ -673,7 +597,6 @@ $current_path = realpath($current_dir);
         </main>
     </div>
 
-    <!-- Footer -->
     <footer class="footer">
         Crafted with <i class="fas fa-mug-hot" style="color: #e0ac7a;"></i> by 
         <a href="https://totiard.github.io/Profile-New" target="_blank" rel="noopener noreferrer" class="neon-link">Toti Ardiansyah</a> 
@@ -682,7 +605,6 @@ $current_path = realpath($current_dir);
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Ambil Elemen DOM ---
             const searchInput = document.getElementById('searchInput');
             const sortSelect = document.getElementById('sortSelect');
             const projectContainer = document.getElementById('projectContainer');
@@ -690,47 +612,38 @@ $current_path = realpath($current_dir);
             const gridViewBtn = document.getElementById('gridViewBtn');
             const listViewBtn = document.getElementById('listViewBtn');
             
-            // Simpan referensi ke semua item proyek
             const projectItems = Array.from(projectGrid.querySelectorAll('.project-item'));
 
-            // --- Fungsi Filter Pencarian ---
             function filterProjects() {
                 const filter = searchInput.value.toLowerCase();
                 
                 projectItems.forEach(item => {
-                    // Cek data-name
                     const name = item.dataset.name;
                     if (name.includes(filter)) {
-                        item.style.display = ''; // Tampilkan jika cocok
+                        item.style.display = '';
                     } else {
-                        item.style.display = 'none'; // Sembunyikan jika tidak
+                        item.style.display = 'none';
                     }
                 });
-                // Sesuaikan 'display' dari grid container berdasarkan view
-                // Ini penting agar 'display: none' dari item berfungsi
                 const currentView = projectContainer.classList.contains('list-view') ? 'list' : 'grid';
                 setView(currentView);
             }
 
-            // --- Fungsi Sorting ---
             function sortProjects() {
                 const sortValue = sortSelect.value;
-                const [sortBy, sortDir] = sortValue.split('-'); // Cth: ['mtime', 'desc']
+                const [sortBy, sortDir] = sortValue.split('-');
 
                 projectItems.sort((a, b) => {
                     let valA, valB;
 
-                    // Ambil nilai berdasarkan data-atribut
                     if (sortBy === 'name') {
                         valA = a.dataset.name;
                         valB = b.dataset.name;
                     } else {
-                        // Untuk 'mtime' dan 'size', parsing sebagai angka
                         valA = parseInt(a.dataset[sortBy], 10);
                         valB = parseInt(b.dataset[sortBy], 10);
                     }
 
-                    // Tentukan urutan
                     let comparison = 0;
                     if (valA > valB) {
                         comparison = 1;
@@ -741,38 +654,30 @@ $current_path = realpath($current_dir);
                     return (sortDir === 'desc') ? (comparison * -1) : comparison;
                 });
 
-                // Susun ulang item di dalam grid
                 projectItems.forEach(item => projectGrid.appendChild(item));
             }
 
-            // --- Fungsi Ganti Tampilan ---
             function setView(view) {
                 if (view === 'grid') {
                     projectContainer.classList.remove('list-view');
                     projectContainer.classList.add('grid-view');
                     gridViewBtn.classList.add('active');
                     listViewBtn.classList.remove('active');
-                    // REVISI: Sesuaikan display container
                     projectGrid.style.display = 'grid';
                 } else if (view === 'list') {
                     projectContainer.classList.remove('grid-view');
                     projectContainer.classList.add('list-view');
                     gridViewBtn.classList.remove('active');
                     listViewBtn.classList.add('active');
-                    // REVISI: Sesuaikan display container
-                    projectGrid.style.display = 'grid'; // Tetap grid untuk layout list
+                    projectGrid.style.display = 'grid';
                 }
             }
 
-            // --- Pasang Event Listeners ---
             searchInput.addEventListener('keyup', filterProjects);
             sortSelect.addEventListener('change', sortProjects);
             gridViewBtn.addEventListener('click', () => setView('grid'));
             listViewBtn.addEventListener('click', () => setView('list'));
 
-            // --- Inisialisasi ---
-            // Tampilan awal sudah diurutkan oleh PHP (Terbaru)
-            // Tampilan awal di set ke 'grid' oleh CSS
         });
     </script>
 
